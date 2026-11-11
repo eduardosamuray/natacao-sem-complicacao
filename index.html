@@ -310,4 +310,33 @@ document.addEventListener('change',e=>{if(e.target.id!=='nscPhoto'||!e.target.fi
 const prev=window.saveProfile;window.saveProfile=function(){const h=get('nscHeight')?.value||'',w=get('nscWeight')?.value||'';const hn=Number(h.replace(',','.')),wn=Number(w.replace(',','.'));if((h||w)&&(!(hn>.8&&hn<2.5)||!(wn>20&&wn<350))){alert('Confira altura e peso antes de salvar.');return}const old=window.db?.profile;prev();if(hn>.8&&wn>20){extra.height=h;extra.weight=w;extra.weights=extra.weights||[];extra.weights.push({weight:wn,date:new Date().toLocaleDateString('pt-BR')})}try{localStorage.setItem(K,JSON.stringify(extra))}catch(e){}restore()};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',restore);else restore();
 })();
+</script><style>
+#nscPhotoArea{background:linear-gradient(135deg,#182f49,#0d1d31);border:1px solid #4c6580;border-radius:20px;padding:20px;justify-content:center;text-align:center}
+#nscPhotoArea #nscAvatar{display:block!important;width:104px!important;height:104px!important;box-shadow:0 0 0 5px #1e3850,0 5px 22px #0005}
+#nscPhotoArea #nscAvatar:not([src]){background:#28435d}
+#nscPhotoArea label{display:inline-block;background:linear-gradient(120deg,#a7802e,#f2d887,#b78d3b);color:#142033;font-weight:800;padding:12px 16px;border-radius:12px;cursor:pointer}
+#nscPhoto{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+#nscBMI{padding:14px;background:#1b334b;border:1px solid #405e78;border-radius:13px;margin:12px 0}
+.nsc-check{border:1px solid #526b80;border-radius:10px;background:#233d54;color:white;font-weight:800;white-space:nowrap;padding:11px 14px;min-width:96px;min-height:45px}
+.nsc-check[aria-pressed=true]{background:#315f4b;border-color:#7bc5a0;color:#fff}
+.nsc-ex-done{opacity:.58;background:#132b2a!important;border-radius:10px}
+.exercise-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.exercise-row>div:first-child{flex:1 1 190px;min-width:0}
+.exercise-row .exercise-video{flex-shrink:0}
+@media(max-width:520px){#nscPhotoArea{flex-direction:column}#nscPhotoArea>div{width:100%}.exercise-row .nsc-check{flex:1 1 100%;order:3}.exercise-row .exercise-video{margin-left:auto}}
+</style>
+<script>
+(function(){
+const k='nsc_exercises_done_v1';let state={};try{state=JSON.parse(localStorage.getItem(k)||'{}')||{}}catch(e){}
+function persist(){try{localStorage.setItem(k,JSON.stringify(state))}catch(e){}}
+function decorate(){
+const area=document.getElementById('todayContent');if(!area)return;
+const rows=[...area.querySelectorAll('.exercise-row')];
+const sid=(typeof nextSession==='function'&&nextSession()?.id)||'none';
+rows.forEach((row,i)=>{if(row.querySelector('.nsc-check'))return;const key=sid+':'+i,done=!!state[key];const b=document.createElement('button');b.type='button';b.className='nsc-check';b.setAttribute('aria-pressed',String(done));b.textContent=done?'✓ Feito':'✓ Marcar feito';row.classList.toggle('nsc-ex-done',done);b.addEventListener('click',()=>{state[key]=!state[key];persist();b.setAttribute('aria-pressed',String(!!state[key]));b.textContent=state[key]?'✓ Feito':'✓ Marcar feito';row.classList.toggle('nsc-ex-done',!!state[key])});row.appendChild(b)});
+}
+const area=document.getElementById('todayContent');if(area){const observer=new MutationObserver(()=>{observer.disconnect();try{decorate()}finally{observer.observe(area,{childList:true,subtree:true})}});observer.observe(area,{childList:true,subtree:true});decorate()}
+const photo=document.getElementById('nscAvatar');if(photo&&!photo.getAttribute('src')){photo.removeAttribute('hidden');photo.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" fill="#274560"/><circle cx="80" cy="57" r="27" fill="#e0c07d"/><path d="M28 146c0-67 104-67 104 0" fill="#e0c07d"/></svg>')}
+const chooser=document.getElementById('nscPhoto');if(chooser){chooser.addEventListener('change',()=>{if(chooser.files?.length){const l=document.querySelector('label[for="nscPhoto"]');if(l)l.textContent='✓ Foto selecionada — alterar foto'}})}
+})();
 </script></body></html>
