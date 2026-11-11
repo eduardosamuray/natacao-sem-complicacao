@@ -433,7 +433,7 @@ if(file){
 (function(){
  const key='nsc_exercises_done_v1';
  function read(){try{return JSON.parse(localStorage.getItem(key)||'{}')}catch(e){return {}}}
- function sync(){const all=read();document.querySelectorAll('.nsc-done-btn').forEach(b=>{const k=b.dataset.session+'::'+b.dataset.exercise;b.setAttribute('aria-pressed',all[k]?'true':'false');b.textContent=all[k]?'✓ Feito — desfazer':'✓ Marcar feito'})}
+ function sync(){const all=read();document.querySelectorAll('.nsc-done-btn').forEach(b=>{const k=b.dataset.session+'::'+b.dataset.exercise;const pressed=all[k]?'true':'false',label=all[k]?'✓ Feito — desfazer':'✓ Marcar feito';if(b.getAttribute('aria-pressed')!==pressed)b.setAttribute('aria-pressed',pressed);if(b.textContent!==label)b.textContent=label})}
  document.addEventListener('click',e=>{const b=e.target.closest('.nsc-done-btn');if(!b)return;const all=read(),k=b.dataset.session+'::'+b.dataset.exercise;all[k]=!all[k];try{localStorage.setItem(key,JSON.stringify(all))}catch(err){alert('Não foi possível guardar esta marcação neste navegador.')}sync()});
  const observer=new MutationObserver(()=>{sync()});const target=document.getElementById('todayContent');if(target)observer.observe(target,{childList:true,subtree:true});sync();
 })();
