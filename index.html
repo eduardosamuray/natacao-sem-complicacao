@@ -181,7 +181,7 @@ function exercisesHtml(s){
     html+=`<div class="card"><h4>${esc(b.name)} · ${b.meters} m</h4>`;
     for(const d of drills){
       const e=EXERCISE_LIBRARY[d.key];
-      html+=`<div class="exercise-row"><div><b>${esc(e.title)}</b><br><small>${esc(d.prescription)} · <b>Descanse ${recoverySeconds(d.key,s,b.name)} segundos entre cada vez</b></small><br><small>${esc(e.tip||'')}</small>${e.equipment?`<br><small>Equipamento: ${esc(e.equipment)} (opcional). ${esc(e.alternative)}</small>`:''}</div><a class="exercise-video" href="${videoExercise(d.key)}" target="_blank" rel="noopener noreferrer" aria-label="Buscar vídeo demonstrativo de ${esc(e.title)}">▶ Ver vídeo</a></div>`;
+      html+=`<div class="exercise-row"><div><b>${esc(e.title)}</b><br><small>${esc(d.prescription)} · <b>Descanse ${recoverySeconds(d.key,s,b.name)} segundos entre cada vez</b></small><br><small>${esc(e.tip||'')}</small>${e.equipment?`<br><small>Equipamento: ${esc(e.equipment)} (opcional). ${esc(e.alternative)}</small>`:''}</div><div class="nsc-exercise-actions"><a class="exercise-video" href="${videoExercise(d.key)}" target="_blank" rel="noopener noreferrer" aria-label="Buscar vídeo demonstrativo de ${esc(e.title)}">▶ Ver vídeo</a><button type="button" class="nsc-done-btn" data-session="${esc(s.id)}" data-exercise="${esc(b.name+'|'+d.key+'|'+d.prescription)}" aria-pressed="false">✓ Feito</button></div></div>`;
     }
     html+='</div>';
   }
@@ -421,5 +421,20 @@ if(file){
  });
 }
 
+})();
+</script><style>
+.nsc-exercise-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.nsc-done-btn{background:#223e55;color:#fff;border:1px solid #c6a861;border-radius:10px;padding:10px 13px;min-height:44px;cursor:pointer}
+.nsc-done-btn[aria-pressed="true"]{background:#315f52;color:#fff;border-color:#70bd9b}
+.exercise-row:has(.nsc-done-btn[aria-pressed="true"]){border-left:3px solid #70bd9b;padding-left:8px}
+#nscPhoto{max-width:100%;font-size:14px}
+#nscAvatar{display:block!important}
+</style><script>
+(function(){
+ const key='nsc_exercises_done_v1';
+ function read(){try{return JSON.parse(localStorage.getItem(key)||'{}')}catch(e){return {}}}
+ function sync(){const all=read();document.querySelectorAll('.nsc-done-btn').forEach(b=>{const k=b.dataset.session+'::'+b.dataset.exercise;b.setAttribute('aria-pressed',all[k]?'true':'false');b.textContent=all[k]?'✓ Feito — desfazer':'✓ Marcar feito'})}
+ document.addEventListener('click',e=>{const b=e.target.closest('.nsc-done-btn');if(!b)return;const all=read(),k=b.dataset.session+'::'+b.dataset.exercise;all[k]=!all[k];try{localStorage.setItem(key,JSON.stringify(all))}catch(err){alert('Não foi possível guardar esta marcação neste navegador.')}sync()});
+ const observer=new MutationObserver(()=>{sync()});const target=document.getElementById('todayContent');if(target)observer.observe(target,{childList:true,subtree:true});sync();
 })();
 </script></body></html>
