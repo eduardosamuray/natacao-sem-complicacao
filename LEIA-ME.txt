@@ -1,0 +1,11 @@
+NATAÇÃO SEM COMPLICAÇÃO — Android PWA
+
+1. Crie uma conta em https://github.com/signup
+2. Crie um repositório público chamado natacao-sem-complicacao.
+3. Envie os arquivos DE DENTRO desta pasta para a raiz do repositório (não envie apenas o ZIP).
+4. No repositório: Settings > Pages > Build and deployment > Deploy from a branch > main > /(root) > Save.
+5. Aguarde o endereço https://SEU-USUARIO.github.io/natacao-sem-complicacao/ aparecer.
+6. Abra o endereço no Chrome do Android > menu ⋮ > Instalar aplicativo ou Adicionar à tela inicial.
+
+Atenção: GitHub Pages Free publica o código do repositório publicamente. Não envie dados pessoais, senhas ou histórico de treinos. O histórico do app é armazenado no navegador do aparelho; faça backup antes de limpar os dados do Chrome.
+Vídeos externos exigem internet.
