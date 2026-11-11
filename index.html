@@ -339,4 +339,48 @@ const area=document.getElementById('todayContent');if(area){const observer=new M
 const photo=document.getElementById('nscAvatar');if(photo&&!photo.getAttribute('src')){photo.removeAttribute('hidden');photo.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" fill="#274560"/><circle cx="80" cy="57" r="27" fill="#e0c07d"/><path d="M28 146c0-67 104-67 104 0" fill="#e0c07d"/></svg>')}
 const chooser=document.getElementById('nscPhoto');if(chooser){chooser.addEventListener('change',()=>{if(chooser.files?.length){const l=document.querySelector('label[for="nscPhoto"]');if(l)l.textContent='✓ Foto selecionada — alterar foto'}})}
 })();
+</script><style>
+#nscAvatar{display:block;object-fit:cover;max-width:100%;background:#28435d}
+#nscPhotoArea{min-width:0}#nscPhotoArea label{touch-action:manipulation}
+.nsc-watch-photo{margin:14px 0;padding:14px;border:1px solid #405e78;border-radius:12px;background:#152a40}
+.nsc-watch-photo img{display:block;max-width:100%;max-height:340px;object-fit:contain;margin:10px auto;border-radius:10px}
+</style><script>
+(function(){
+const key='nsc_profile_extra_v1',photo=document.getElementById('nscPhoto'),avatar=document.getElementById('nscAvatar');
+if(photo&&avatar){
+const status=document.createElement('p');status.className='muted';status.setAttribute('aria-live','polite');photo.parentElement.appendChild(status);
+function show(src){if(!src)return;avatar.onload=()=>{avatar.hidden=false;status.textContent='Foto carregada.'};avatar.onerror=()=>{status.textContent='Não foi possível abrir esta imagem. Tente uma foto JPG ou PNG.'};avatar.src=src;avatar.hidden=false}
+try{const saved=JSON.parse(localStorage.getItem(key)||'{}');if(saved.photo)show(saved.photo)}catch(e){}
+photo.addEventListener('change',async e=>{
+ const f=e.target.files&&e.target.files[0];if(!f)return;
+ if(!f.type.startsWith('image/')){status.textContent='Escolha uma imagem.';return}
+ status.textContent='Carregando foto…';
+ let url=URL.createObjectURL(f);
+ try{
+  const img=new Image();img.decoding='async';
+  await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url});
+  const c=document.createElement('canvas'),scale=Math.min(1,512/Math.max(img.naturalWidth,img.naturalHeight));
+  c.width=Math.max(1,Math.round(img.naturalWidth*scale));c.height=Math.max(1,Math.round(img.naturalHeight*scale));
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  const data=c.toDataURL('image/jpeg',.82);show(data);
+  try{const obj=JSON.parse(localStorage.getItem(key)||'{}');obj.photo=data;localStorage.setItem(key,JSON.stringify(obj))}
+  catch(err){status.textContent='Foto visível neste aparelho, mas sem espaço para salvá-la permanentemente.'}
+ }catch(err){show(url);status.textContent='Prévia carregada; este formato pode não permitir armazenamento.'}
+ finally{setTimeout(()=>URL.revokeObjectURL(url),3000)}
+});
+}
+const file=document.getElementById('watchFile');
+if(file){
+ const wrap=document.createElement('div');wrap.className='nsc-watch-photo';
+ wrap.innerHTML='<label for="nscWatchPhoto">Foto ou captura da tela do relógio (JPG/PNG)</label><input type="file" id="nscWatchPhoto" accept="image/*"><p class="muted">A imagem será exibida para conferência. Transcreva os números nos campos do relatório; a foto não é interpretada automaticamente.</p><div id="nscWatchPhotoPreview"></div>';
+ file.closest('details')?.appendChild(wrap);
+ let oldUrl=null;
+ document.getElementById('nscWatchPhoto').addEventListener('change',e=>{
+ const f=e.target.files?.[0],target=document.getElementById('nscWatchPhotoPreview');if(!f||!target)return;
+ if(oldUrl)URL.revokeObjectURL(oldUrl);oldUrl=URL.createObjectURL(f);
+ target.replaceChildren();const img=document.createElement('img');img.alt='Imagem do relógio selecionada';img.src=oldUrl;
+ img.onerror=()=>{target.textContent='Não foi possível visualizar a imagem. Tente JPG ou PNG.'};target.appendChild(img);
+ });
+}
+})();
 </script></body></html>
