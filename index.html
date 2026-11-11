@@ -378,22 +378,42 @@ if(file){
  let url=null,ocrData=null;
  const number=s=>Number(String(s).replace(/\s/g,'').replace(',','.'));
  function parse(text){
-  const lines=text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').split(/\n/).map(x=>x.trim()).filter(Boolean);
-  const pick=(words,pattern)=>{for(let i=0;i<lines.length;i++){if(words.some(w=>lines[i].toLowerCase().includes(w))){let tail=lines[i].replace(/^.*?(?:[:：]|\s{2,})/,'');let m=tail.match(pattern)||lines[i+1]?.match(pattern);if(m)return m[0]}}return null};
-  const distance=pick(['distancia','distance','metros'],/(\d[\d., ]*)\s*(km|m)\b/i);
-  let meters=null;if(distance){let m=distance.match(/(\d[\d., ]*)\s*(km|m)/i);if(m){let n=number(m[1]);meters=m[2].toLowerCase()==='km'?Math.round(n*1000):Math.round(n)}}
-  const duration=pick(['duracao','duration','tempo total','moving time','elapsed time','tempo de atividade'],/(\d{1,2}:\d{2}(?::\d{2})?|\d+(?:[.,]\d+)?\s*(?:min|h))\b/i);
-  let minutes=null;if(duration){if(duration.includes(':')){let parts=duration.split(':').map(Number);minutes=parts.length===3?parts[0]*60+parts[1]+parts[2]/60:parts[0]+parts[1]/60}else{let n=number(duration.match(/[\d.,]+/)[0]);minutes=/h\b/i.test(duration)?n*60:n}}
-  const avg=pick(['fc media','frequencia cardiaca media','average heart rate','avg heart rate','heart rate avg','bpm medio'],/(\d{2,3})\s*(?:bpm)?/i);
-  const max=pick(['fc maxima','frequencia cardiaca maxima','max heart rate','maximum heart rate'],/(\d{2,3})\s*(?:bpm)?/i);
-  let hr=avg?Number(avg):null,maxHR=max?Number(max):null;
-  if(!(meters>0&&meters<=30000))meters=null;if(!(minutes>0&&minutes<=600))minutes=null;
-  if(!(hr>=40&&hr<=240))hr=null;if(!(maxHR>=40&&maxHR<=250))maxHR=null;
-  return {meters,minutes:minutes===null?null:Math.round(minutes*10)/10,hr,maxHR};
+  const lines=String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’‘]/g,"'").split(/\n/).map(x=>x.trim().toLowerCase()).filter(Boolean);
+  const labels={
+   meters:['distancia','distance'],minutes:['duracao do exercicio','duracao da natacao','tempo total','duration'],
+   hr:['frequencia cardiaca media','fc media','average heart rate'],maxHR:['frequencia cardiaca maxima','fc maxima','max heart rate'],
+   laps:['voltas','laps'],swolf:['swolf'],strokes:['total de bracadas'],strokeAvg:['taxa media de bracada'],strokeMax:['taxa maxima de bracada'],
+   pace:['ritmo medio','average pace'],bestPace:['melhor ritmo','ritmo otimo','best pace'],calories:['queima','calorias','calories']
+  };
+  const number=s=>Number(String(s).replace(/\s/g,'').replace(',','.'));
+  const matches=(line,patterns)=>{for(const p of patterns){const m=line.match(p);if(m)return m[0]}return null};
+  function get(key,patterns){
+   for(let i=0;i<lines.length;i++){
+    const label=labels[key].find(l=>lines[i].includes(l));if(!label)continue;
+    const pos=lines[i].indexOf(label)+label.length;
+    // OCR sometimes puts value before label in a column, but never use preceding unrelated fields.
+    const tail=lines[i].slice(pos).replace(/^[\s:：\-]+/,'');
+    const direct=matches(tail,patterns);if(direct)return direct;
+    for(let j=i+1;j<=Math.min(i+2,lines.length-1);j++){
+     if(Object.values(labels).some(arr=>arr.some(l=>lines[j].includes(l))))break;
+     const found=matches(lines[j],patterns);if(found)return found;
+    }
+   }return null;
+  }
+  const dist=get('meters',[/\b\d[\d., ]{0,12}\s*km\b/,/\b\d[\d., ]{0,12}\s*m\b/]);
+  let meters=null;if(dist){const m=dist.match(/([\d., ]+)\s*(km|m)/);if(m)meters=Math.round(number(m[1])*(m[2]==='km'?1000:1))}
+  const dur=get('minutes',[/\b\d{1,2}:\d{2}:\d{2}\b/,/\b\d{1,3}:\d{2}\b/]);
+  let minutes=null;if(dur){const p=dur.split(':').map(Number);minutes=p.length===3?p[0]*60+p[1]+p[2]/60:p[0]+p[1]/60}
+  const integer=(key)=>{const v=get(key,[/\b\d{1,5}\b/]);return v===null?null:parseInt(v,10)};
+  const pace=(key)=>{const v=get(key,[/\b\d{1,2}[:']\d{2}(?:(?:''|")|(?=\s|$|\/))/,/\b\d{1,2}[:']\d{2}\b/]);if(!v)return null;const p=v.match(/(\d{1,2})[:'](\d{2})/);return p?Number(p[1])*60+Number(p[2]):null};
+  const data={meters,minutes:minutes===null?null:Math.round(minutes*100)/100,hr:integer('hr'),maxHR:integer('maxHR'),laps:integer('laps'),swolf:integer('swolf'),strokes:integer('strokes'),strokeAvg:integer('strokeAvg'),strokeMax:integer('strokeMax'),pace:pace('pace'),bestPace:pace('bestPace'),calories:integer('calories')};
+  const limits={meters:30000,minutes:600,hr:240,maxHR:250,laps:10000,swolf:500,strokes:30000,strokeAvg:200,strokeMax:200,pace:3600,bestPace:3600,calories:5000};
+  for(const [k,v] of Object.entries(data))if(v===null||!Number.isFinite(v)||v<=0||v>limits[k]||((k==='hr'||k==='maxHR')&&v<40))data[k]=null;
+  return data;
  }
  function fields(data){
-  const inputs=[['meters','Distância (m)',30000],['minutes','Duração (min)',600],['hr','FC média (bpm)',240],['maxHR','FC máxima (bpm)',250]];
-  result.innerHTML='<h4>Confira os dados reconhecidos</h4>'+inputs.map(([k,label,max])=>'<label>'+label+'<input type="number" min="0" max="'+max+'" step="any" data-ocr="'+k+'" value="'+(data[k]??'')+'" placeholder="Não identificado"></label>').join('')+'<button type="button" id="nscOcrApply">Usar dados conferidos no treino</button><p class="muted">Campos em branco não serão preenchidos. Nenhum dado é salvo automaticamente.</p>';
+  const inputs=[['meters','Distância (m)',30000],['minutes','Duração (min)',600],['hr','FC média (bpm)',240],['maxHR','FC máxima (bpm)',250],['laps','Voltas',10000],['swolf','SWOLF',500],['strokes','Total de braçadas',30000],['strokeAvg','Braçadas/min média',200],['strokeMax','Braçadas/min máxima',200],['pace','Ritmo médio (seg/100m)',3600],['bestPace','Melhor ritmo (seg/100m)',3600],['calories','Calorias (kcal)',5000]];
+  result.innerHTML='<h4>Confira os dados reconhecidos</h4><p class="muted">Se algum número estiver errado, corrija antes de aplicar. Ritmo em segundos: 3:36 = 216.</p>'+inputs.map(([k,label,max])=>'<label style="display:block;margin:8px 0">'+label+'<input type="number" min="0" max="'+max+'" step="any" data-ocr="'+k+'" value="'+(data[k]??'')+'" placeholder="Não identificado"></label>').join('')+'<button type="button" id="nscOcrApply">Usar dados conferidos no treino</button><p class="muted">Campos em branco não serão preenchidos. Nenhum dado é salvo automaticamente.</p>';
   document.getElementById('nscOcrApply').onclick=()=>{
    const v={};result.querySelectorAll('[data-ocr]').forEach(el=>{const n=el.value===''?null:Number(el.value);v[el.dataset.ocr]=n!==null&&Number.isFinite(n)&&n>=0&&n<=Number(el.max)?n:null});
    if(!Object.values(v).some(x=>x!==null)){status.textContent='Informe ao menos um dado válido.';return}
