@@ -190,7 +190,7 @@ function exercisesHtml(s){
 function sessionHtml(s,details=false){let done=s.done;return `<div class="session ${done?'done':''}"><div class="row spread"><b>${esc(s.type)}</b><span class="pill">${sessionDateLabel(s)}</span></div><div>${s.meters?s.meters+' m':'Sem metragem automática'} • Semana ${s.week+1} • Mês ${s.month} • ${phase(s.week)}</div><p class="muted">${esc(s.reason)}</p>${details?exercisesHtml(s):''}${done?'<span class="pill">✓ Concluída</span>':details?(s.startedOn?`<button class="gold" onclick="startRecord('${s.id}')">Registrar resultado</button>`:`<button class="gold" onclick="beginSession('${s.id}')">VOU TREINAR HOJE</button>`):''}</div>`}
 
 let pendingWatch=null;
-function startRecord(id){let s=cycle()?.sessions.find(s=>s.id===id);if(!s||s.done)return;if(!s.startedOn){beginSession(id);return}let blocked=safetyBlocked();$('todayContent').innerHTML=sessionHtml(s,true)+(blocked?'<div class="error">Treinamento suspenso por alerta de segurança. Busque avaliação profissional e faça uma nova avaliação antes de continuar.</div>':`<div class="card"><h3>Relatório do treino</h3><div class="grid"><label>Execução<select id="completion"><option value="full">Completei tudo</option><option value="partial">Completei parcialmente</option><option value="notdone">Não realizei</option></select></label><label>Distância realizada (m)<input id="actual" type="number" min="0" max="30000" value="${s.meters}"></label><label>Esforço percebido (RPE 1–10)<input id="rpe" type="number" min="1" max="10" value="5"></label><label>Sensação<select id="feeling"><option value="ok">Bem</option><option value="tired">Cansado</option><option value="pain">Dor</option><option value="symptoms">Sintomas / mal-estar</option></select></label><label>Tempo do relógio (minutos)<input id="watchMinutes" type="number" min="0" max="600" step="0.1" placeholder="Opcional"></label><label>Distância do relógio (m)<input id="watchMeters" type="number" min="0" max="30000" placeholder="Opcional"></label><label>FC média (bpm)<input id="watchHR" type="number" min="0" max="240" placeholder="Opcional"></label><label>FC máxima (bpm)<input id="watchMaxHR" type="number" min="0" max="250" placeholder="Opcional"></label><label>Origem dos dados<select id="watchSource"><option value="manual">Digitados manualmente</option><option value="file">Arquivo TCX/CSV importado</option></select></label><label>Observações<textarea id="notes" maxlength="500" placeholder="Como foi a respiração, a técnica e a recuperação?"></textarea></label></div><div id="validationPreview"></div><button class="gold" onclick="record('${s.id}')">Validar e registrar</button></div>`);if(pendingWatch)fillWatchFields();}
+function startRecord(id){let s=cycle()?.sessions.find(s=>s.id===id);if(!s||s.done)return;if(!s.startedOn){beginSession(id);return}let blocked=safetyBlocked();$('todayContent').innerHTML=sessionHtml(s,true)+(blocked?'<div class="error">Treinamento suspenso por alerta de segurança. Busque avaliação profissional e faça uma nova avaliação antes de continuar.</div>':`<div class="card"><h3>Relatório do treino</h3><div class="grid"><label>Execução<select id="completion"><option value="full">Completei tudo</option><option value="partial">Completei parcialmente</option><option value="notdone">Não realizei</option></select></label><label>Distância realizada (m)<input id="actual" type="number" min="0" max="30000" value="${s.meters}"></label><label>Esforço percebido (RPE 1–10)<input id="rpe" type="number" min="1" max="10" value="5"></label><label>Sensação<select id="feeling"><option value="ok">Bem</option><option value="tired">Cansado</option><option value="pain">Dor</option><option value="symptoms">Sintomas / mal-estar</option></select></label><label>Tempo do relógio (minutos)<input id="watchMinutes" type="number" min="0" max="600" step="0.1" placeholder="Opcional"></label><label>Distância do relógio (m)<input id="watchMeters" type="number" min="0" max="30000" placeholder="Opcional"></label><label>FC média (bpm)<input id="watchHR" type="number" min="0" max="240" placeholder="Opcional"></label><label>FC máxima (bpm)<input id="watchMaxHR" type="number" min="0" max="250" placeholder="Opcional"></label><label>Origem dos dados<select id="watchSource"><option value="manual">Digitados manualmente</option><option value="file">Arquivo TCX/CSV importado</option><option value="photo">Foto do relógio conferida</option></select></label><label>Observações<textarea id="notes" maxlength="500" placeholder="Como foi a respiração, a técnica e a recuperação?"></textarea></label></div><div id="validationPreview"></div><button class="gold" onclick="record('${s.id}')">Validar e registrar</button></div>`);if(pendingWatch)fillWatchFields();}
 function readWatchFile(event){let file=event.target.files?.[0];if(!file)return;if(file.size>2_000_000){alert('Arquivo acima de 2 MB.');return}const reader=new FileReader();reader.onload=()=>{try{let t=String(reader.result),data={};if(/\.tcx$/i.test(file.name)){let xml=new DOMParser().parseFromString(t,'application/xml');if(xml.querySelector('parsererror'))throw Error('XML inválido');const tags=tag=>Array.from(xml.getElementsByTagName('*')).filter(e=>e.localName===tag);let laps=tags('Lap');let dist=laps.map(l=>Array.from(l.children).find(e=>e.localName==='DistanceMeters')).filter(Boolean).map(e=>+e.textContent).filter(Number.isFinite);if(!dist.length){let d=tags('DistanceMeters').map(e=>+e.textContent).filter(Number.isFinite);dist=d.length?[Math.max(...d)]:[];}let total=laps.map(l=>Array.from(l.children).find(e=>e.localName==='TotalTimeSeconds')).filter(Boolean).map(e=>+e.textContent).filter(Number.isFinite);let hr=tags('AverageHeartRateBpm').map(e=>+(e.getElementsByTagName('*')[0]?.textContent||0)).filter(x=>x>0);let max=tags('MaximumHeartRateBpm').map(e=>+(e.getElementsByTagName('*')[0]?.textContent||0)).filter(x=>x>0);data={meters:Math.round(dist.reduce((a,b)=>a+b,0)),minutes:total.reduce((a,b)=>a+b,0)/60,hr:hr.length?Math.round(hr.reduce((a,b)=>a+b,0)/hr.length):null,maxHR:max.length?Math.max(...max):null};}else if(/\.csv$/i.test(file.name)){let lines=t.trim().split(/\r?\n/);if(lines.length<2)throw Error('CSV sem registros');let sep=lines[0].includes(';')?';':',';let heads=lines[0].split(sep).map(x=>x.trim().toLowerCase().replace(/["']/g,''));let vals=lines[1].split(sep).map(x=>x.trim().replace(/["']/g,''));let pick=(terms)=>{let i=heads.findIndex(h=>terms.some(x=>h.includes(x)));return i<0?null:Number(vals[i].replace(',','.'))};data={meters:pick(['distance_m','distancia_m','distância_m','meters','metros']),minutes:pick(['duration_min','duracao_min','duração_min','minutes','minutos']),hr:pick(['avg_hr','fc_media','fc média','heart_rate_avg']),maxHR:pick(['max_hr','fc_max','fc máxima'])};if(data.meters===null&&data.minutes===null)throw Error('Colunas não reconhecidas. Use distance_m e duration_min.');}else throw Error('Formato não suportado');pendingWatch={...data,fileName:file.name};$('watchPreview').textContent='Importado: '+file.name+' | distância '+(data.meters??'—')+' m | duração '+(data.minutes??'—')+' min | FC média '+(data.hr??'—')+' bpm. Abra o registro da sessão e confira.';fillWatchFields();}catch(e){$('watchPreview').textContent='Falha na importação: '+e.message;pendingWatch=null}};reader.readAsText(file)}
 function fillWatchFields(){if(!pendingWatch||!$('watchMeters'))return;let w=pendingWatch;for(let [k,v] of [['watchMeters',w.meters],['watchMinutes',w.minutes],['watchHR',w.hr],['watchMaxHR',w.maxHR]])if(v!==null&&v!==undefined&&Number.isFinite(v))$(k).value=v;$('watchSource').value='file'}
 function watchNum(id){let raw=$(id)?.value?.trim();return raw===''?null:Number(raw)}
@@ -372,15 +372,54 @@ photo.addEventListener('change',async e=>{
 const file=document.getElementById('watchFile');
 if(file){
  const wrap=document.createElement('div');wrap.className='nsc-watch-photo';
- wrap.innerHTML='<label for="nscWatchPhoto">Foto ou captura da tela do relógio (JPG/PNG)</label><input type="file" id="nscWatchPhoto" accept="image/*"><p class="muted">A imagem será exibida para conferência. Transcreva os números nos campos do relatório; a foto não é interpretada automaticamente.</p><div id="nscWatchPhotoPreview"></div>';
+ wrap.innerHTML='<label for="nscWatchPhoto">Foto ou print do relógio</label><input type="file" id="nscWatchPhoto" accept="image/*"><p class="muted">Reconhecimento automático no próprio aparelho. Confira os números antes de registrar. Requer internet na primeira leitura.</p><div id="nscWatchPhotoPreview"></div><div id="nscOcrStatus" role="status" aria-live="polite"></div><div id="nscOcrResult"></div>';
  file.closest('details')?.appendChild(wrap);
- let oldUrl=null;
- document.getElementById('nscWatchPhoto').addEventListener('change',e=>{
- const f=e.target.files?.[0],target=document.getElementById('nscWatchPhotoPreview');if(!f||!target)return;
- if(oldUrl)URL.revokeObjectURL(oldUrl);oldUrl=URL.createObjectURL(f);
- target.replaceChildren();const img=document.createElement('img');img.alt='Imagem do relógio selecionada';img.src=oldUrl;
- img.onerror=()=>{target.textContent='Não foi possível visualizar a imagem. Tente JPG ou PNG.'};target.appendChild(img);
+ const status=document.getElementById('nscOcrStatus'),result=document.getElementById('nscOcrResult'),preview=document.getElementById('nscWatchPhotoPreview');
+ let url=null,ocrData=null;
+ const number=s=>Number(String(s).replace(/\s/g,'').replace(',','.'));
+ function parse(text){
+  const lines=text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').split(/\n/).map(x=>x.trim()).filter(Boolean);
+  const pick=(words,pattern)=>{for(let i=0;i<lines.length;i++){if(words.some(w=>lines[i].toLowerCase().includes(w))){let tail=lines[i].replace(/^.*?(?:[:：]|\s{2,})/,'');let m=tail.match(pattern)||lines[i+1]?.match(pattern);if(m)return m[1]||m[0]}}return null};
+  const distance=pick(['distancia','distance','metros'],/(\d[\d., ]*)\s*(km|m)\b/i);
+  let meters=null;if(distance){let m=distance.match(/(\d[\d., ]*)\s*(km|m)/i);if(m){let n=number(m[1]);meters=m[2].toLowerCase()==='km'?Math.round(n*1000):Math.round(n)}}
+  const duration=pick(['duracao','duration','tempo total','moving time','elapsed time','tempo de atividade'],/(\d{1,2}:\d{2}(?::\d{2})?|\d+(?:[.,]\d+)?\s*(?:min|h))\b/i);
+  let minutes=null;if(duration){if(duration.includes(':')){let parts=duration.split(':').map(Number);minutes=parts.length===3?parts[0]*60+parts[1]+parts[2]/60:parts[0]+parts[1]/60}else{let n=number(duration.match(/[\d.,]+/)[0]);minutes=/h\b/i.test(duration)?n*60:n}}
+  const avg=pick(['fc media','frequencia cardiaca media','average heart rate','avg heart rate','heart rate avg','bpm medio'],/(\d{2,3})\s*(?:bpm)?/i);
+  const max=pick(['fc maxima','frequencia cardiaca maxima','max heart rate','maximum heart rate'],/(\d{2,3})\s*(?:bpm)?/i);
+  let hr=avg?Number(avg):null,maxHR=max?Number(max):null;
+  if(!(meters>0&&meters<=30000))meters=null;if(!(minutes>0&&minutes<=600))minutes=null;
+  if(!(hr>=40&&hr<=240))hr=null;if(!(maxHR>=40&&maxHR<=250))maxHR=null;
+  return {meters,minutes:minutes===null?null:Math.round(minutes*10)/10,hr,maxHR};
+ }
+ function fields(data){
+  const inputs=[['meters','Distância (m)',30000],['minutes','Duração (min)',600],['hr','FC média (bpm)',240],['maxHR','FC máxima (bpm)',250]];
+  result.innerHTML='<h4>Confira os dados reconhecidos</h4>'+inputs.map(([k,label,max])=>'<label>'+label+'<input type="number" min="0" max="'+max+'" step="any" data-ocr="'+k+'" value="'+(data[k]??'')+'" placeholder="Não identificado"></label>').join('')+'<button type="button" id="nscOcrApply">Usar dados conferidos no treino</button><p class="muted">Campos em branco não serão preenchidos. Nenhum dado é salvo automaticamente.</p>';
+  document.getElementById('nscOcrApply').onclick=()=>{
+   const v={};result.querySelectorAll('[data-ocr]').forEach(el=>{const n=el.value===''?null:Number(el.value);v[el.dataset.ocr]=n!==null&&Number.isFinite(n)&&n>=0&&n<=Number(el.max)?n:null});
+   if(!Object.values(v).some(x=>x!==null)){status.textContent='Informe ao menos um dado válido.';return}
+   ocrData=v;pendingWatch={...v,fileName:'Foto do relógio (conferida)'};
+   if(typeof fillWatchFields==='function')fillWatchFields();
+   status.textContent='Dados conferidos. Abra o relatório do treino para validar e registrar.';
+  };
+ }
+ const loadOCR=()=>new Promise((resolve,reject)=>{
+  if(window.Tesseract){resolve(window.Tesseract);return}
+  const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';script.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(Error('Biblioteca indisponível'));script.onerror=()=>reject(Error('Não foi possível carregar o reconhecimento'));document.head.appendChild(script);
+ });
+ document.getElementById('nscWatchPhoto').addEventListener('change',async e=>{
+  const f=e.target.files?.[0];if(!f)return;
+  if(!f.type.startsWith('image/')||f.size>12_000_000){status.textContent='Selecione uma imagem de até 12 MB.';return}
+  if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(f);
+  preview.replaceChildren();const img=document.createElement('img');img.alt='Captura do relógio';img.src=url;preview.appendChild(img);
+  result.replaceChildren();status.textContent='Preparando leitura da imagem…';
+  try{
+   const T=await loadOCR();const worker=await T.createWorker('por+eng',1,{logger:m=>{if(m.status==='recognizing text')status.textContent='Lendo imagem: '+Math.round(m.progress*100)+'%'}});
+   let data;try{data=await worker.recognize(f)}finally{await worker.terminate()}
+   const parsed=parse(data.data.text||'');fields(parsed);
+   status.textContent=Object.values(parsed).some(v=>v!==null)?'Leitura concluída. Confira e corrija os valores abaixo.':'Não consegui identificar os números com segurança. Você pode preenchê-los abaixo.';
+  }catch(err){status.textContent='Falha na leitura automática. Verifique a conexão e tente novamente. Você ainda pode digitar os dados no relatório.'}
  });
 }
+
 })();
 </script></body></html>
